@@ -35,9 +35,18 @@ unzip awscliv2.zip
 # kubectl
 snap install kubectl --classic
 
+
 # eksctl
 curl -s https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz \
-| tar xz -C /tmp
-mv /tmp/eksctl /usr/local/bin
+  | tar xz -C /tmp
+chmod +x /tmp/eksctl
+mv /tmp/eksctl /usr/local/bin/
+export PATH=$PATH:/usr/local/bin
+if command -v eksctl >/dev/null 2>&1; then
+  echo "eksctl installed successfully: $(eksctl version)"
+else
+  echo "eksctl installation failed" >&2
+  exit 1
+fi
 
 reboot
