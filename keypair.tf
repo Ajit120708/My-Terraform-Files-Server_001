@@ -1,6 +1,6 @@
 resource "aws_key_pair" "bastion_key" {
-  key_name   = var.key_name
-  public_key = file("~/.ssh/id_rsa.pub")
+  key_name   = "my-key"
+  public_key = file("${path.module}/my-key.pem.pub")
 
   tags = {
     Name = "bastion-host-key"

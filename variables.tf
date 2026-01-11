@@ -18,6 +18,3 @@ variable "allowed_ssh_cidr" {
   default = "0.0.0.0/0"
 }
 
-variable "key_name" {
-  default = "bastion-host-key"
-}
