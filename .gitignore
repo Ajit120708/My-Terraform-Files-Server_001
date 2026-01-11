@@ -2,11 +2,11 @@
 .terraform/
 *.tfstate
 *.tfstate.*
-.terraform.lock.hcl
+terraform.tfvars
 
 # OS
-.DS_Store
 Thumbs.db
+.DS_Store
 
 # Logs
 *.log
