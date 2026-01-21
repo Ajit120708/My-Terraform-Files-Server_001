@@ -49,4 +49,18 @@ else
   exit 1
 fi
 
+# Apache Tomcat 9.0.27
+wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.27/bin/apache-tomcat-9.0.27.tar.gz
+
+if [ -f apache-tomcat-9.0.27.tar.gz ]; then
+  tar xzf apache-tomcat-9.0.27.tar.gz
+  mv apache-tomcat-9.0.27 /opt/tomcat9
+  chmod +x /opt/tomcat9/bin/*.sh
+  echo "Tomcat 9.0.27 installed at /opt/tomcat9"
+  /opt/tomcat9/bin/startup.sh
+else
+  echo "Tomcat 9.0.27 download failed" >&2
+fi
+
+
 reboot
