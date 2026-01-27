@@ -12,19 +12,33 @@ systemctl enable docker
 systemctl start docker
 usermod -aG docker ubuntu
 
-# Jenkins
-curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | tee \
-  /usr/share/keyrings/jenkins-keyring.asc > /dev/null
 
-echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
-  https://pkg.jenkins.io/debian-stable binary/ | tee \
-  /etc/apt/sources.list.d/jenkins.list > /dev/null
+# Jenkins Installation with Error Handling
+set -o pipefail
+if curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null; then
+  echo "Jenkins key added."
+else
+  echo "Failed to add Jenkins key" >&2
+  exit 1
+fi
+
+if echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/ | tee /etc/apt/sources.list.d/jenkins.list > /dev/null; then
+  echo "Jenkins repo added."
+else
+  echo "Failed to add Jenkins repo" >&2
+  exit 1
+fi
 
 apt update -y
-apt install -y jenkins
-systemctl enable jenkins
-systemctl start jenkins
-usermod -aG docker jenkins
+if apt install -y jenkins; then
+  echo "Jenkins installed."
+  systemctl enable jenkins
+  systemctl start jenkins
+  usermod -aG docker jenkins
+else
+  echo "Jenkins installation failed" >&2
+  exit 1
+fi
 
 # AWS CLI
 apt install -y unzip
@@ -49,7 +63,10 @@ else
   exit 1
 fi
 
-# Apache Tomcat 9.0.27
+
+# Apache Tomcat 9.0.27 with JAVA_HOME and systemd service
+export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
+echo "JAVA_HOME is set to $JAVA_HOME"
 wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.27/bin/apache-tomcat-9.0.27.tar.gz
 
 if [ -f apache-tomcat-9.0.27.tar.gz ]; then
@@ -57,9 +74,57 @@ if [ -f apache-tomcat-9.0.27.tar.gz ]; then
   mv apache-tomcat-9.0.27 /opt/tomcat9
   chmod +x /opt/tomcat9/bin/*.sh
   echo "Tomcat 9.0.27 installed at /opt/tomcat9"
-  /opt/tomcat9/bin/startup.sh
+  # Create systemd service for Tomcat
+  cat <<EOF > /etc/systemd/system/tomcat9.service
+[Unit]
+Description=Apache Tomcat 9
+After=network.target
+
+[Service]
+Type=forking
+Environment=JAVA_HOME=$JAVA_HOME
+Environment=CATALINA_PID=/opt/tomcat9/temp/tomcat.pid
+Environment=CATALINA_HOME=/opt/tomcat9
+Environment=CATALINA_BASE=/opt/tomcat9
+ExecStart=/opt/tomcat9/bin/startup.sh
+ExecStop=/opt/tomcat9/bin/shutdown.sh
+User=root
+Group=root
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl daemon-reload
+  systemctl enable tomcat9
+  systemctl start tomcat9
 else
   echo "Tomcat 9.0.27 download failed" >&2
+fi
+
+# Run custom JAR if present
+if [ -f /opt/app/app.jar ]; then
+  echo "Found app.jar, running as a service."
+  cat <<EOF > /etc/systemd/system/appjar.service
+[Unit]
+Description=Custom Java Application
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/app
+ExecStart=$JAVA_HOME/bin/java -jar /opt/app/app.jar
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl daemon-reload
+  systemctl enable appjar
+  systemctl start appjar
+else
+  echo "No app.jar found in /opt/app, skipping JAR execution."
 fi
 
 
