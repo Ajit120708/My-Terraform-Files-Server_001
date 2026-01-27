@@ -18,3 +18,7 @@ variable "allowed_ssh_cidr" {
   default = "0.0.0.0/0"
 }
 
+variable "key_name" {
+  description = "EC2 key pair name"
+  type        = string
+}
