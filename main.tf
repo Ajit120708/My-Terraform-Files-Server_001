@@ -50,12 +50,12 @@ resource "aws_security_group" "bastion_sg" {
 }
 
 resource "aws_instance" "bastion_host" {
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = var.instance_type
-  subnet_id              = var.subnet_id
-  key_name               = aws_key_pair.bastion_key.key_name
-  vpc_security_group_ids = [aws_security_group.bastion_sg.id]
-  iam_instance_profile   = aws_iam_instance_profile.bastion_profile.name
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = var.instance_type
+  subnet_id                   = var.subnet_id
+  key_name                    = aws_key_pair.bastion_key.key_name
+  vpc_security_group_ids      = [aws_security_group.bastion_sg.id]
+  iam_instance_profile        = aws_iam_instance_profile.bastion_profile.name
   associate_public_ip_address = true
 
   user_data = file("user-data.sh")
