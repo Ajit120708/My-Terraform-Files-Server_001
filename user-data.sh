@@ -13,19 +13,21 @@ systemctl start docker
 usermod -aG docker ubuntu
 
 
-# Jenkins Installation with Detailed Logging
+# Jenkins Installation with Updated GPG Key Handling (for Ubuntu 22.04+)
 set -o pipefail
 LOG_JENKINS="/var/log/jenkins_install.log"
 echo "--- Jenkins installation started at $(date) ---" | tee -a $LOG_JENKINS
 
-if curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null; then
+# Download and add the new Jenkins GPG key
+if curl -fsSL https://pkg.jenkins.io/debian/jenkins.io-2023.key | gpg --dearmor -o /usr/share/keyrings/jenkins-keyring.gpg; then
   echo "Jenkins key added." | tee -a $LOG_JENKINS
 else
   echo "Failed to add Jenkins key" | tee -a $LOG_JENKINS >&2
   exit 1
 fi
 
-if echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/ | tee /etc/apt/sources.list.d/jenkins.list > /dev/null; then
+# Add the Jenkins apt repository
+if echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.gpg] https://pkg.jenkins.io/debian-stable binary/" | tee /etc/apt/sources.list.d/jenkins.list > /dev/null; then
   echo "Jenkins repo added." | tee -a $LOG_JENKINS
 else
   echo "Failed to add Jenkins repo" | tee -a $LOG_JENKINS >&2
