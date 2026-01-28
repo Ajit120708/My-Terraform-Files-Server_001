@@ -13,32 +13,45 @@ systemctl start docker
 usermod -aG docker ubuntu
 
 
-# Jenkins Installation with Error Handling
+# Jenkins Installation with Detailed Logging
 set -o pipefail
+LOG_JENKINS="/var/log/jenkins_install.log"
+echo "--- Jenkins installation started at $(date) ---" | tee -a $LOG_JENKINS
+
 if curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null; then
-  echo "Jenkins key added."
+  echo "Jenkins key added." | tee -a $LOG_JENKINS
 else
-  echo "Failed to add Jenkins key" >&2
+  echo "Failed to add Jenkins key" | tee -a $LOG_JENKINS >&2
   exit 1
 fi
 
 if echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/ | tee /etc/apt/sources.list.d/jenkins.list > /dev/null; then
-  echo "Jenkins repo added."
+  echo "Jenkins repo added." | tee -a $LOG_JENKINS
 else
-  echo "Failed to add Jenkins repo" >&2
+  echo "Failed to add Jenkins repo" | tee -a $LOG_JENKINS >&2
   exit 1
 fi
 
-apt update -y
-if apt install -y jenkins; then
-  echo "Jenkins installed."
-  systemctl enable jenkins
-  systemctl start jenkins
-  usermod -aG docker jenkins
+echo "Running apt update..." | tee -a $LOG_JENKINS
+if apt update -y >> $LOG_JENKINS 2>&1; then
+  echo "apt update successful." | tee -a $LOG_JENKINS
 else
-  echo "Jenkins installation failed" >&2
+  echo "apt update failed!" | tee -a $LOG_JENKINS >&2
   exit 1
 fi
+
+echo "Installing Jenkins..." | tee -a $LOG_JENKINS
+if apt install -y jenkins >> $LOG_JENKINS 2>&1; then
+  echo "Jenkins installed." | tee -a $LOG_JENKINS
+  systemctl enable jenkins >> $LOG_JENKINS 2>&1
+  systemctl start jenkins >> $LOG_JENKINS 2>&1
+  usermod -aG docker jenkins
+  echo "Jenkins service started and added to docker group." | tee -a $LOG_JENKINS
+else
+  echo "Jenkins installation failed! See $LOG_JENKINS for details." | tee -a $LOG_JENKINS >&2
+  exit 1
+fi
+echo "--- Jenkins installation ended at $(date) ---" | tee -a $LOG_JENKINS
 
 # AWS CLI
 apt install -y unzip
