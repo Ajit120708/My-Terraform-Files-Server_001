@@ -18,7 +18,10 @@ set -o pipefail
 LOG_JENKINS="/var/log/jenkins_install.log"
 echo "--- Jenkins installation started at $(date) ---" | tee -a $LOG_JENKINS
 
-# Download and add the new Jenkins GPG key
+# Remove any old Jenkins key or repo files
+rm -f /usr/share/keyrings/jenkins-keyring.asc /etc/apt/sources.list.d/jenkins.list
+
+# Download and add the new Jenkins GPG key (2023+)
 if curl -fsSL https://pkg.jenkins.io/debian/jenkins.io-2023.key | gpg --dearmor -o /usr/share/keyrings/jenkins-keyring.gpg; then
   echo "Jenkins key added." | tee -a $LOG_JENKINS
 else
@@ -26,7 +29,7 @@ else
   exit 1
 fi
 
-# Add the Jenkins apt repository
+# Add the Jenkins apt repository (signed-by .gpg)
 if echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.gpg] https://pkg.jenkins.io/debian-stable binary/" | tee /etc/apt/sources.list.d/jenkins.list > /dev/null; then
   echo "Jenkins repo added." | tee -a $LOG_JENKINS
 else
