@@ -18,6 +18,9 @@ set -o pipefail
 LOG_JENKINS="/var/log/jenkins_install.log"
 echo "--- Jenkins installation started at $(date) ---" | tee -a $LOG_JENKINS
 
+# Ensure gpg is installed for key conversion
+apt-get update -y && apt-get install -y gpg
+
 # Remove any old Jenkins key or repo files
 rm -f /usr/share/keyrings/jenkins-keyring.asc /etc/apt/sources.list.d/jenkins.list
 
