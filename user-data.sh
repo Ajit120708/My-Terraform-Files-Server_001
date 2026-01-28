@@ -13,22 +13,28 @@ systemctl start docker
 usermod -aG docker ubuntu
 
 
-# Jenkins Installation with Updated GPG Key Handling (for Ubuntu 22.04+)
+# Jenkins Installation with Latest Official Key Handling (Ubuntu 22.04+)
 set -o pipefail
 LOG_JENKINS="/var/log/jenkins_install.log"
 echo "--- Jenkins installation started at $(date) ---" | tee -a $LOG_JENKINS
 
-# Ensure gpg is installed for key conversion
-apt-get update -y && apt-get install -y gpg
+# Ensure required tools are installed
+apt-get update -y && apt-get install -y gpg curl ca-certificates
 
 # Remove any old Jenkins key or repo files
-rm -f /usr/share/keyrings/jenkins-keyring.asc /etc/apt/sources.list.d/jenkins.list
+rm -f /usr/share/keyrings/jenkins-keyring.asc /usr/share/keyrings/jenkins-keyring.gpg /etc/apt/sources.list.d/jenkins.list
 
 # Download and add the new Jenkins GPG key (2023+)
-if curl -fsSL https://pkg.jenkins.io/debian/jenkins.io-2023.key | gpg --dearmor -o /usr/share/keyrings/jenkins-keyring.gpg; then
+if curl -fsSL https://pkg.jenkins.io/debian/jenkins.io-2023.key | gpg --dearmor | tee /usr/share/keyrings/jenkins-keyring.gpg > /dev/null; then
   echo "Jenkins key added." | tee -a $LOG_JENKINS
 else
   echo "Failed to add Jenkins key" | tee -a $LOG_JENKINS >&2
+  exit 1
+fi
+
+# Verify the key file is valid and non-empty
+if [ ! -s /usr/share/keyrings/jenkins-keyring.gpg ]; then
+  echo "Jenkins keyring file is missing or empty!" | tee -a $LOG_JENKINS >&2
   exit 1
 fi
 
