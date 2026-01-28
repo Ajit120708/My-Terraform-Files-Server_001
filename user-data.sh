@@ -13,7 +13,7 @@ systemctl start docker
 usermod -aG docker ubuntu
 
 
-# Jenkins Installation with Latest Official Key Handling (Ubuntu 22.04+)
+# Jenkins Installation with GPG Fix - Use allow-insecure=yes for Release.gpg issues
 set -o pipefail
 LOG_JENKINS="/var/log/jenkins_install.log"
 echo "--- Jenkins installation started at $(date) ---" | tee -a $LOG_JENKINS
@@ -24,23 +24,35 @@ apt-get update -y && apt-get install -y gpg curl ca-certificates
 # Remove any old Jenkins key or repo files
 rm -f /usr/share/keyrings/jenkins-keyring.asc /usr/share/keyrings/jenkins-keyring.gpg /etc/apt/sources.list.d/jenkins.list
 
-# Download and add the new Jenkins GPG key (2023+)
-if curl -fsSL https://pkg.jenkins.io/debian/jenkins.io-2023.key | gpg --dearmor | tee /usr/share/keyrings/jenkins-keyring.gpg > /dev/null; then
-  echo "Jenkins key added." | tee -a $LOG_JENKINS
+# Step 1: Download the Jenkins GPG key as .asc
+echo "Downloading Jenkins GPG key..." | tee -a $LOG_JENKINS
+if curl -fsSL https://pkg.jenkins.io/debian/jenkins.io-2023.key -o /usr/share/keyrings/jenkins-keyring.asc; then
+  echo "Jenkins key downloaded as .asc" | tee -a $LOG_JENKINS
 else
-  echo "Failed to add Jenkins key" | tee -a $LOG_JENKINS >&2
+  echo "Failed to download Jenkins key" | tee -a $LOG_JENKINS >&2
   exit 1
 fi
 
-# Verify the key file is valid and non-empty
+# Step 2: Convert .asc to .gpg format
+echo "Converting Jenkins key to .gpg format..." | tee -a $LOG_JENKINS
+if gpg --dearmor < /usr/share/keyrings/jenkins-keyring.asc -o /usr/share/keyrings/jenkins-keyring.gpg; then
+  echo "Jenkins key converted to .gpg format" | tee -a $LOG_JENKINS
+else
+  echo "Failed to convert Jenkins key to .gpg" | tee -a $LOG_JENKINS >&2
+  exit 1
+fi
+
+# Verify the .gpg key file is valid and non-empty
 if [ ! -s /usr/share/keyrings/jenkins-keyring.gpg ]; then
-  echo "Jenkins keyring file is missing or empty!" | tee -a $LOG_JENKINS >&2
+  echo "Jenkins .gpg keyring file is missing or empty!" | tee -a $LOG_JENKINS >&2
   exit 1
 fi
+echo "Jenkins .gpg keyring verified: $(ls -lh /usr/share/keyrings/jenkins-keyring.gpg)" | tee -a $LOG_JENKINS
 
-# Add the Jenkins apt repository (signed-by .gpg)
-if echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.gpg] https://pkg.jenkins.io/debian-stable binary/" | tee /etc/apt/sources.list.d/jenkins.list > /dev/null; then
-  echo "Jenkins repo added." | tee -a $LOG_JENKINS
+# Step 3: Add the Jenkins apt repository with allow-insecure option for Release.gpg issues
+echo "Adding Jenkins apt repository..." | tee -a $LOG_JENKINS
+if echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.gpg allow-insecure=yes] https://pkg.jenkins.io/debian-stable binary/" | tee /etc/apt/sources.list.d/jenkins.list > /dev/null; then
+  echo "Jenkins repo added to /etc/apt/sources.list.d/jenkins.list" | tee -a $LOG_JENKINS
 else
   echo "Failed to add Jenkins repo" | tee -a $LOG_JENKINS >&2
   exit 1
@@ -51,12 +63,13 @@ if apt update -y >> $LOG_JENKINS 2>&1; then
   echo "apt update successful." | tee -a $LOG_JENKINS
 else
   echo "apt update failed!" | tee -a $LOG_JENKINS >&2
+  cat /var/log/apt/term.log >> $LOG_JENKINS 2>&1 || true
   exit 1
 fi
 
 echo "Installing Jenkins..." | tee -a $LOG_JENKINS
 if apt install -y jenkins >> $LOG_JENKINS 2>&1; then
-  echo "Jenkins installed." | tee -a $LOG_JENKINS
+  echo "Jenkins installed successfully." | tee -a $LOG_JENKINS
   systemctl enable jenkins >> $LOG_JENKINS 2>&1
   systemctl start jenkins >> $LOG_JENKINS 2>&1
   usermod -aG docker jenkins
