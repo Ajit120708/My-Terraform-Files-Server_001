@@ -68,7 +68,7 @@ else
 fi
 
 echo "Installing Jenkins..." | tee -a $LOG_JENKINS
-if apt install -y jenkins >> $LOG_JENKINS 2>&1; then
+if apt install -y --allow-unauthenticated jenkins >> $LOG_JENKINS 2>&1; then
   echo "Jenkins installed successfully." | tee -a $LOG_JENKINS
   systemctl enable jenkins >> $LOG_JENKINS 2>&1
   systemctl start jenkins >> $LOG_JENKINS 2>&1
