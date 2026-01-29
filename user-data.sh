@@ -104,16 +104,27 @@ else
 fi
 
 
-# Apache Tomcat 9.0.27 with JAVA_HOME and systemd service
-export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
-echo "JAVA_HOME is set to $JAVA_HOME"
-wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.27/bin/apache-tomcat-9.0.27.tar.gz
 
-if [ -f apache-tomcat-9.0.27.tar.gz ]; then
+# Apache Tomcat 9.0.27 with JAVA_HOME and systemd service
+set -o pipefail
+LOG_TOMCAT="/var/log/tomcat_install.log"
+echo "--- Tomcat installation started at $(date) ---" | tee -a $LOG_TOMCAT
+export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
+echo "JAVA_HOME is set to $JAVA_HOME" | tee -a $LOG_TOMCAT
+
+# Download Tomcat with retries
+TOMCAT_URL="https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.27/bin/apache-tomcat-9.0.27.tar.gz"
+for i in {1..5}; do
+  wget -O apache-tomcat-9.0.27.tar.gz "$TOMCAT_URL" && break
+  echo "Tomcat download attempt $i failed, retrying in 5s..." | tee -a $LOG_TOMCAT
+  sleep 5
+done
+
+if [ -f apache-tomcat-9.0.27.tar.gz ] && [ $(stat -c%s apache-tomcat-9.0.27.tar.gz) -gt 10000000 ]; then
   tar xzf apache-tomcat-9.0.27.tar.gz
   mv apache-tomcat-9.0.27 /opt/tomcat9
   chmod +x /opt/tomcat9/bin/*.sh
-  echo "Tomcat 9.0.27 installed at /opt/tomcat9"
+  echo "Tomcat 9.0.27 installed at /opt/tomcat9" | tee -a $LOG_TOMCAT
   # Create systemd service for Tomcat
   cat <<EOF > /etc/systemd/system/tomcat9.service
 [Unit]
@@ -138,9 +149,11 @@ EOF
   systemctl daemon-reload
   systemctl enable tomcat9
   systemctl start tomcat9
+  echo "Tomcat service started." | tee -a $LOG_TOMCAT
 else
-  echo "Tomcat 9.0.27 download failed" >&2
+  echo "Tomcat 9.0.27 download failed or file is too small!" | tee -a $LOG_TOMCAT >&2
 fi
+echo "--- Tomcat installation ended at $(date) ---" | tee -a $LOG_TOMCAT
 
 # Run custom JAR if present
 if [ -f /opt/app/app.jar ]; then
