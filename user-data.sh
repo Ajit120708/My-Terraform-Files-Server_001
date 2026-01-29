@@ -71,9 +71,12 @@ echo "Installing Jenkins..." | tee -a $LOG_JENKINS
 if apt install -y --allow-unauthenticated jenkins >> $LOG_JENKINS 2>&1; then
   echo "Jenkins installed successfully." | tee -a $LOG_JENKINS
   systemctl enable jenkins >> $LOG_JENKINS 2>&1
+  # Change Jenkins port to 9090
+  sed -i 's/HTTP_PORT=8080/HTTP_PORT=9090/' /etc/default/jenkins
   systemctl start jenkins >> $LOG_JENKINS 2>&1
+  systemctl restart jenkins >> $LOG_JENKINS 2>&1
   usermod -aG docker jenkins
-  echo "Jenkins service started and added to docker group." | tee -a $LOG_JENKINS
+  echo "Jenkins service started on port 9090 and added to docker group." | tee -a $LOG_JENKINS
 else
   echo "Jenkins installation failed! See $LOG_JENKINS for details." | tee -a $LOG_JENKINS >&2
   exit 1
