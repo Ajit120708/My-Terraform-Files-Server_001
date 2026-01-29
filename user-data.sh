@@ -124,6 +124,7 @@ done
 
 if [ $DOWNLOAD_SUCCESS -eq 1 ] && [ -f "$TOMCAT_ARCHIVE" ] && [ $(stat -c%s "$TOMCAT_ARCHIVE") -gt 10000000 ]; then
   if tar tzf "$TOMCAT_ARCHIVE" > /dev/null 2>&1; then
+  [ -d /opt/tomcat9 ] && rm -rf /opt/tomcat9
     tar xzf "$TOMCAT_ARCHIVE"
     mv apache-tomcat-9.0.27 /opt/tomcat9
     chmod +x /opt/tomcat9/bin/*.sh
