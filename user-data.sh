@@ -112,21 +112,24 @@ echo "--- Tomcat installation started at $(date) ---" | tee -a $LOG_TOMCAT
 export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
 echo "JAVA_HOME is set to $JAVA_HOME" | tee -a $LOG_TOMCAT
 
-# Download Tomcat with retries
 TOMCAT_URL="https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.27/bin/apache-tomcat-9.0.27.tar.gz"
+TOMCAT_ARCHIVE="apache-tomcat-9.0.27.tar.gz"
+DOWNLOAD_SUCCESS=0
 for i in {1..5}; do
-  wget -O apache-tomcat-9.0.27.tar.gz "$TOMCAT_URL" && break
+  echo "Attempt $i: Downloading Tomcat..." | tee -a $LOG_TOMCAT
+  curl -fSL --retry 5 --retry-delay 5 -o "$TOMCAT_ARCHIVE" "$TOMCAT_URL" && DOWNLOAD_SUCCESS=1 && break
   echo "Tomcat download attempt $i failed, retrying in 5s..." | tee -a $LOG_TOMCAT
   sleep 5
 done
 
-if [ -f apache-tomcat-9.0.27.tar.gz ] && [ $(stat -c%s apache-tomcat-9.0.27.tar.gz) -gt 10000000 ]; then
-  tar xzf apache-tomcat-9.0.27.tar.gz
-  mv apache-tomcat-9.0.27 /opt/tomcat9
-  chmod +x /opt/tomcat9/bin/*.sh
-  echo "Tomcat 9.0.27 installed at /opt/tomcat9" | tee -a $LOG_TOMCAT
-  # Create systemd service for Tomcat
-  cat <<EOF > /etc/systemd/system/tomcat9.service
+if [ $DOWNLOAD_SUCCESS -eq 1 ] && [ -f "$TOMCAT_ARCHIVE" ] && [ $(stat -c%s "$TOMCAT_ARCHIVE") -gt 10000000 ]; then
+  if tar tzf "$TOMCAT_ARCHIVE" > /dev/null 2>&1; then
+    tar xzf "$TOMCAT_ARCHIVE"
+    mv apache-tomcat-9.0.27 /opt/tomcat9
+    chmod +x /opt/tomcat9/bin/*.sh
+    echo "Tomcat 9.0.27 installed at /opt/tomcat9" | tee -a $LOG_TOMCAT
+    # Create systemd service for Tomcat
+    cat <<EOF > /etc/systemd/system/tomcat9.service
 [Unit]
 Description=Apache Tomcat 9
 After=network.target
@@ -146,12 +149,17 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 EOF
-  systemctl daemon-reload
-  systemctl enable tomcat9
-  systemctl start tomcat9
-  echo "Tomcat service started." | tee -a $LOG_TOMCAT
+    systemctl daemon-reload
+    systemctl enable tomcat9
+    systemctl start tomcat9
+    echo "Tomcat service started." | tee -a $LOG_TOMCAT
+  else
+    echo "Downloaded Tomcat archive is corrupted. Removing file." | tee -a $LOG_TOMCAT >&2
+    rm -f "$TOMCAT_ARCHIVE"
+  fi
 else
-  echo "Tomcat 9.0.27 download failed or file is too small!" | tee -a $LOG_TOMCAT >&2
+  echo "Tomcat 9.0.27 download failed, file missing, or file is too small!" | tee -a $LOG_TOMCAT >&2
+  rm -f "$TOMCAT_ARCHIVE"
 fi
 echo "--- Tomcat installation ended at $(date) ---" | tee -a $LOG_TOMCAT
 
