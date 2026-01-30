@@ -10,4 +10,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# key files
 my-key.pem
